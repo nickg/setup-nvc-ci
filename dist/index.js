@@ -28711,30 +28711,78 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
-//import { Octokit, App } from "octokit";
 const rest_1 = __nccwpck_require__(1273);
 const exec_1 = __nccwpck_require__(1514);
 const tool_cache_1 = __nccwpck_require__(7784);
-function run() {
+const octokit = new rest_1.Octokit();
+function installLatest() {
     return __awaiter(this, void 0, void 0, function* () {
-        let version = core.getInput("version") || "stable";
-        core.info(`Requested version is ${version}`);
-        const octokit = new rest_1.Octokit();
-        const releases = yield octokit.rest.repos.listReleases({ owner: 'nickg', repo: 'nvc' });
+        core.startGroup("Query last successful build on master branch");
+        const runs = yield octokit.actions.listWorkflowRuns({
+            owner: "nickg",
+            repo: "nvc",
+            workflow_id: "build-test.yml",
+            branch: "master",
+            per_page: 1,
+            status: "success",
+        });
+        const artifacts = yield octokit.actions.listWorkflowRunArtifacts({
+            owner: "nickg",
+            repo: "nvc",
+            run_id: runs.data.workflow_runs[0].id,
+        });
+        for (const a of artifacts.data.artifacts) {
+            console.log(a);
+        }
+        core.endGroup();
+    });
+}
+function getStableRelease() {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.startGroup("Query latest stable release");
+        const releases = yield octokit.repos.listReleases({
+            owner: 'nickg',
+            repo: 'nvc',
+            per_page: 1
+        });
         const latest = releases.data[0];
-        console.log(latest);
-        core.info(`Latest release is ${latest.name}`);
+        core.info(`Stable release is ${latest.name}`);
+        core.endGroup();
+        return latest;
+    });
+}
+function getNamedRelease(name) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.startGroup(`Querying release ${name}`);
+        try {
+            const resp = yield octokit.rest.repos.getReleaseByTag({
+                owner: 'nickg',
+                repo: 'nvc',
+                tag: `r${name}`,
+            });
+            return resp.data;
+        }
+        catch (e) {
+            throw new Error(`No release ${name}`);
+        }
+        finally {
+            core.endGroup();
+        }
+    });
+}
+function installRelease(rel) {
+    return __awaiter(this, void 0, void 0, function* () {
         let osVersion = '';
         yield (0, exec_1.exec)('bash', ['-c', '. /etc/os-release && echo $VERSION_ID'], {
             listeners: {
                 stdout: (data) => { osVersion = data.toString().trim(); }
             }
         });
-        //osVersion = '22.04';
+        //  osVersion = '22.04';
         core.info(`OS version is ${osVersion}`);
         let url = '', file = '';
         const suffix = `ubuntu-${osVersion}.deb`;
-        for (const a of latest.assets) {
+        for (const a of rel.assets) {
             if (a.name.endsWith(suffix)) {
                 core.info(`Found matching asset ${a.name}`);
                 url = a.browser_download_url;
@@ -28743,7 +28791,7 @@ function run() {
             }
         }
         if (!url) {
-            throw new Error(`No package for Ubuntu ${osVersion} in release ${latest.name}`);
+            throw new Error(`No package for Ubuntu ${osVersion} in release ${rel.name}`);
         }
         core.startGroup(`Download ${file}`);
         const tmp = process.env['RUNNER_TEMP'];
@@ -28756,6 +28804,23 @@ function run() {
         core.startGroup("Install package");
         yield (0, exec_1.exec)('sudo', ['apt-get', 'install', pkg]);
         core.endGroup();
+    });
+}
+function run() {
+    return __awaiter(this, void 0, void 0, function* () {
+        let version = core.getInput("version") || "stable";
+        core.info(`Requested version is ${version}`);
+        if (version === "latest") {
+            installLatest();
+        }
+        else if (version === "stable") {
+            const rel = yield getStableRelease();
+            installRelease(rel);
+        }
+        else {
+            const rel = yield getNamedRelease(version);
+            installRelease(rel);
+        }
     });
 }
 run();
