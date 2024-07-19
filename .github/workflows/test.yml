@@ -8,6 +8,18 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
+  lint:
+    name: Lint checks
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install dependencies
+        run: npm install .
+      - name: Check dist directory up-to-date
+        run: npm run build && git diff --exit-code
+
   ubuntu:
     strategy:
       fail-fast: false
@@ -15,6 +27,7 @@ jobs:
         os: [ 22.04, 24.04, latest ]
         version: [ stable, latest, 1.12.0 ]
     runs-on: ubuntu-${{ matrix.os }}
+    needs: [ lint ]
     name: 'Ubuntu ${{ matrix.os }} - ${{ matrix.version }}'
     steps:
     - uses: actions/checkout@v4
