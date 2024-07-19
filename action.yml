@@ -1,0 +1,13 @@
+name: 'Setup NVC'
+description: 'Install NVC VHDL simulator'
+inputs:
+  version:
+    description: 'Version to install (stable, master, or a specific version)'
+    required: false
+    default: stable
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+branding:
+  color: gray-dark
+  icon: play

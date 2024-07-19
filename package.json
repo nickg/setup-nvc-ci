@@ -1,0 +1,33 @@
+{
+  "name": "setup-nvc-ci",
+  "version": "1.0.0",
+  "description": "GitHub Action to install NVC VHDL simulator",
+  "main": "index.js",
+  "scripts": {
+    "build": "ncc build -o dist src/main.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickg/setup-nvc-ci.git"
+  },
+  "keywords": [
+    "actions",
+    "node",
+    "setup"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nickg/setup-nvc-ci/issues"
+  },
+  "homepage": "https://github.com/nickg/setup-nvc-ci#readme",
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "@vercel/ncc": "^0.38.1",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1"
+  }
+}
