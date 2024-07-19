@@ -19,6 +19,10 @@ jobs:
         run: npm install .
       - name: Check dist directory up-to-date
         run: npm run build && git diff --exit-code
+      - name: Run TypeScript checks
+        run: npx tsc --noEmit
+      - name: Run lint checks
+        run: npm run lint
 
   ubuntu:
     strategy:
@@ -26,6 +30,11 @@ jobs:
       matrix:
         os: [ 22.04, 24.04, latest ]
         version: [ stable, latest, 1.12.0 ]
+        exclude:
+          - os: latest
+            version: 1.12.0
+          - os: 24.04
+            version: 1.12.0
     runs-on: ubuntu-${{ matrix.os }}
     needs: [ lint ]
     name: 'Ubuntu ${{ matrix.os }} - ${{ matrix.version }}'

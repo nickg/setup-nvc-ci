@@ -1,11 +1,11 @@
-import * as core from '@actions/core';
+import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
-import { exec } from '@actions/exec';
-import { downloadTool } from '@actions/tool-cache';
+import { exec } from "@actions/exec";
+import { downloadTool } from "@actions/tool-cache";
 import { GetResponseDataTypeFromEndpointMethod } from "@octokit/types";
 
 type ReleaseType = GetResponseDataTypeFromEndpointMethod<
-  typeof octokit.repos.listReleases>[0]
+  typeof octokit.repos.listReleases>[0];
 
 const octokit = new Octokit();
 
@@ -38,8 +38,8 @@ async function getStableRelease(): Promise<ReleaseType> {
   core.startGroup("Query latest stable release");
 
   const releases = await octokit.repos.listReleases({
-    owner: 'nickg',
-    repo: 'nvc',
+    owner: "nickg",
+    repo: "nvc",
     per_page: 1
   });
 
@@ -51,25 +51,27 @@ async function getStableRelease(): Promise<ReleaseType> {
 }
 
 async function getNamedRelease(name: string): Promise<ReleaseType> {
-  core.startGroup(`Querying release ${name}`);
+  core.startGroup("Query release information");
 
   try {
     const resp = await octokit.rest.repos.getReleaseByTag({
-      owner: 'nickg',
-      repo: 'nvc',
+      owner: "nickg",
+      repo: "nvc",
       tag: `r${name}`,
     });
     return resp.data;
-  } catch (e) {
+  }
+  catch (e) {
     throw new Error(`No release ${name}`);
-  } finally {
+  }
+  finally {
     core.endGroup();
   }
 }
 
 async function installRelease(rel: ReleaseType) {
-  let osVersion = '';
-  await exec('bash', ['-c', '. /etc/os-release && echo $VERSION_ID'],
+  let osVersion = "";
+  await exec("bash", ["-c", ". /etc/os-release && echo $VERSION_ID"],
     {
       listeners: {
         stdout: (data) => { osVersion = data.toString().trim(); }
@@ -80,7 +82,7 @@ async function installRelease(rel: ReleaseType) {
 
   core.info(`OS version is ${osVersion}`);
 
-  let url = '', file = '';
+  let url = "", file = "";
   const suffix = `ubuntu-${osVersion}.deb`;
   for (const a of rel.assets) {
     if (a.name.endsWith(suffix)) {
@@ -92,12 +94,13 @@ async function installRelease(rel: ReleaseType) {
   }
 
   if (!url) {
-    throw new Error(`No package for Ubuntu ${osVersion} in release ${rel.name}`);
+    throw new Error(
+      `No package for Ubuntu ${osVersion} in release ${rel.name}`);
   }
 
   core.startGroup(`Download ${file}`);
 
-  const tmp = process.env['RUNNER_TEMP'];
+  const tmp = process.env["RUNNER_TEMP"];
   if (!tmp) {
     throw new Error("RUNNER_TEMP not set");
   }
@@ -109,21 +112,23 @@ async function installRelease(rel: ReleaseType) {
 
   core.startGroup("Install package");
 
-  await exec('sudo', ['apt-get', 'install', pkg]);
+  await exec("sudo", ["apt-get", "install", pkg]);
 
   core.endGroup();
 }
 
 async function run() {
-  let version = core.getInput("version") || "stable";
+  const version = core.getInput("version") || "stable";
   core.info(`Requested version is ${version}`);
 
   if (version === "latest") {
     installLatest();
-  } else if (version === "stable") {
+  }
+  else if (version === "stable") {
     const rel = await getStableRelease();
     installRelease(rel);
-  } else {
+  }
+  else {
     const rel = await getNamedRelease(version);
     installRelease(rel);
   }

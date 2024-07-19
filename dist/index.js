@@ -28741,8 +28741,8 @@ function getStableRelease() {
     return __awaiter(this, void 0, void 0, function* () {
         core.startGroup("Query latest stable release");
         const releases = yield octokit.repos.listReleases({
-            owner: 'nickg',
-            repo: 'nvc',
+            owner: "nickg",
+            repo: "nvc",
             per_page: 1
         });
         const latest = releases.data[0];
@@ -28753,11 +28753,11 @@ function getStableRelease() {
 }
 function getNamedRelease(name) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.startGroup(`Querying release ${name}`);
+        core.startGroup("Query release information");
         try {
             const resp = yield octokit.rest.repos.getReleaseByTag({
-                owner: 'nickg',
-                repo: 'nvc',
+                owner: "nickg",
+                repo: "nvc",
                 tag: `r${name}`,
             });
             return resp.data;
@@ -28772,15 +28772,15 @@ function getNamedRelease(name) {
 }
 function installRelease(rel) {
     return __awaiter(this, void 0, void 0, function* () {
-        let osVersion = '';
-        yield (0, exec_1.exec)('bash', ['-c', '. /etc/os-release && echo $VERSION_ID'], {
+        let osVersion = "";
+        yield (0, exec_1.exec)("bash", ["-c", ". /etc/os-release && echo $VERSION_ID"], {
             listeners: {
                 stdout: (data) => { osVersion = data.toString().trim(); }
             }
         });
         //  osVersion = '22.04';
         core.info(`OS version is ${osVersion}`);
-        let url = '', file = '';
+        let url = "", file = "";
         const suffix = `ubuntu-${osVersion}.deb`;
         for (const a of rel.assets) {
             if (a.name.endsWith(suffix)) {
@@ -28794,7 +28794,7 @@ function installRelease(rel) {
             throw new Error(`No package for Ubuntu ${osVersion} in release ${rel.name}`);
         }
         core.startGroup(`Download ${file}`);
-        const tmp = process.env['RUNNER_TEMP'];
+        const tmp = process.env["RUNNER_TEMP"];
         if (!tmp) {
             throw new Error("RUNNER_TEMP not set");
         }
@@ -28802,13 +28802,13 @@ function installRelease(rel) {
         console.log(pkg);
         core.endGroup();
         core.startGroup("Install package");
-        yield (0, exec_1.exec)('sudo', ['apt-get', 'install', pkg]);
+        yield (0, exec_1.exec)("sudo", ["apt-get", "install", pkg]);
         core.endGroup();
     });
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        let version = core.getInput("version") || "stable";
+        const version = core.getInput("version") || "stable";
         core.info(`Requested version is ${version}`);
         if (version === "latest") {
             installLatest();
