@@ -24,20 +24,20 @@ jobs:
       - name: Run lint checks
         run: npm run lint
 
-  ubuntu:
+  test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ 22.04, 24.04, latest ]
+        os: [ ubuntu-22.04, ubuntu-24.04, ubuntu-latest, windows-latest ]
         version: [ latest, 1.12.0 ]
         exclude:
-          - os: latest
+          - os: ubuntu-latest
             version: 1.12.0
-          - os: 24.04
+          - os: ubuntu-24.04
             version: 1.12.0
-    runs-on: ubuntu-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     needs: [ lint ]
-    name: 'Ubuntu ${{ matrix.os }} - ${{ matrix.version }}'
+    name: '${{ matrix.os }} / ${{ matrix.version }}'
     steps:
     - uses: actions/checkout@v4
       with:
