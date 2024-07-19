@@ -15,4 +15,10 @@ See [action.yml](action.yml)
     nvc --version    # NVC binary added to path
 ```
 
-Both Ubuntu and Windows runners are supported.
+Both Ubuntu and Windows runners are supported.  The MSYS2 shell on
+Windows does not use the system `PATH` environment variable so you need
+to add it manually:
+
+```sh
+export PATH=/c/Program\ Files/NVC/bin:$PATH
+```
