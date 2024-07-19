@@ -28717,7 +28717,8 @@ const exec_1 = __nccwpck_require__(1514);
 const tool_cache_1 = __nccwpck_require__(7784);
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
-        core.info("hello, world");
+        let version = core.getInput("version") || "stable";
+        core.info(`Requested version is ${version}`);
         const octokit = new rest_1.Octokit();
         const releases = yield octokit.rest.repos.listReleases({ owner: 'nickg', repo: 'nvc' });
         const latest = releases.data[0];
@@ -28744,7 +28745,7 @@ function run() {
         if (!url) {
             throw new Error(`No package for Ubuntu ${osVersion} in release ${latest.name}`);
         }
-        core.startGroup("Download package");
+        core.startGroup(`Download ${file}`);
         const tmp = process.env['RUNNER_TEMP'];
         if (!tmp) {
             throw new Error("RUNNER_TEMP not set");

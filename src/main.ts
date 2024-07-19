@@ -1,23 +1,62 @@
 import * as core from '@actions/core';
-//import { Octokit, App } from "octokit";
 import { Octokit } from "@octokit/rest";
 import { exec } from '@actions/exec';
 import { downloadTool } from '@actions/tool-cache';
-import { listeners } from 'process';
+import { GetResponseDataTypeFromEndpointMethod } from "@octokit/types";
 
-async function run() {
-  core.info("hello, world");
+type ReleaseType = GetResponseDataTypeFromEndpointMethod<
+  typeof octokit.repos.listReleases>[0]
 
-  const octokit = new Octokit();
-  const releases = await octokit.rest.repos.listReleases(
-    { owner: 'nickg', repo: 'nvc' });
+const octokit = new Octokit();
+
+async function installLatest() {
+  const runs = await octokit.actions.listWorkflowRuns({
+    owner: "nickg",
+    repo: "nvc",
+    workflow_id: "build-test.yml",
+    branch: "master",
+    per_page: 1,
+    status: "success",
+  });
+
+  const artifacts = await octokit.actions.listWorkflowRunArtifacts({
+    owner: "nickg",
+    repo: "nvc",
+    run_id: runs.data.workflow_runs[0].id,
+  });
+
+  for (const a of artifacts.data.artifacts) {
+    console.log(a);
+  }
+}
+
+async function getStableRelease(): Promise<ReleaseType> {
+  const releases = await octokit.repos.listReleases({
+    owner: 'nickg',
+    repo: 'nvc',
+    per_page: 1
+  });
 
   const latest = releases.data[0];
+  core.info(`Stable release is ${latest.name}`);
 
-  console.log(latest);
+  return latest;
+}
 
-  core.info(`Latest release is ${latest.name}`);
+async function getNamedRelease(name: string): Promise<ReleaseType> {
+  try {
+    const resp = await octokit.rest.repos.getReleaseByTag({
+      owner: 'nickg',
+      repo: 'nvc',
+      tag: `r${name}`,
+    });
+    return resp.data;
+  } catch (e) {
+    throw new Error(`No release ${name}`);
+  };
+}
 
+async function installRelease(rel: ReleaseType) {
   let osVersion = '';
   await exec('bash', ['-c', '. /etc/os-release && echo $VERSION_ID'],
     {
@@ -26,13 +65,13 @@ async function run() {
       }
     });
 
-  //osVersion = '22.04';
+  //  osVersion = '22.04';
 
   core.info(`OS version is ${osVersion}`);
 
   let url = '', file = '';
   const suffix = `ubuntu-${osVersion}.deb`;
-  for (const a of latest.assets) {
+  for (const a of rel.assets) {
     if (a.name.endsWith(suffix)) {
       core.info(`Found matching asset ${a.name}`);
       url = a.browser_download_url;
@@ -42,10 +81,10 @@ async function run() {
   }
 
   if (!url) {
-    throw new Error(`No package for Ubuntu ${osVersion} in release ${latest.name}`);
+    throw new Error(`No package for Ubuntu ${osVersion} in release ${rel.name}`);
   }
 
-  core.startGroup("Download package");
+  core.startGroup(`Download ${file}`);
 
   const tmp = process.env['RUNNER_TEMP'];
   if (!tmp) {
@@ -62,6 +101,21 @@ async function run() {
   await exec('sudo', ['apt-get', 'install', pkg]);
 
   core.endGroup();
+}
+
+async function run() {
+  let version = core.getInput("version") || "stable";
+  core.info(`Requested version is ${version}`);
+
+  if (version === "latest") {
+    installLatest();
+  } else if (version === "stable") {
+    const rel = await getStableRelease();
+    installRelease(rel);
+  } else {
+    const rel = await getNamedRelease(version);
+    installRelease(rel);
+  }
 }
 
 run();
