@@ -10,6 +10,8 @@ type ReleaseType = GetResponseDataTypeFromEndpointMethod<
 const octokit = new Octokit();
 
 async function installLatest() {
+  core.startGroup("Query last successful build on master branch");
+
   const runs = await octokit.actions.listWorkflowRuns({
     owner: "nickg",
     repo: "nvc",
@@ -28,9 +30,13 @@ async function installLatest() {
   for (const a of artifacts.data.artifacts) {
     console.log(a);
   }
+
+  core.endGroup();
 }
 
 async function getStableRelease(): Promise<ReleaseType> {
+  core.startGroup("Query latest stable release");
+
   const releases = await octokit.repos.listReleases({
     owner: 'nickg',
     repo: 'nvc',
@@ -40,10 +46,13 @@ async function getStableRelease(): Promise<ReleaseType> {
   const latest = releases.data[0];
   core.info(`Stable release is ${latest.name}`);
 
+  core.endGroup();
   return latest;
 }
 
 async function getNamedRelease(name: string): Promise<ReleaseType> {
+  core.startGroup(`Querying release ${name}`);
+
   try {
     const resp = await octokit.rest.repos.getReleaseByTag({
       owner: 'nickg',
@@ -53,7 +62,9 @@ async function getNamedRelease(name: string): Promise<ReleaseType> {
     return resp.data;
   } catch (e) {
     throw new Error(`No release ${name}`);
-  };
+  } finally {
+    core.endGroup();
+  }
 }
 
 async function installRelease(rel: ReleaseType) {
