@@ -28800,7 +28800,8 @@ function installWindows(rel) {
             throw new Error(`No Windows installer in release ${rel.name}`);
         }
         const pkg = yield downloadFile(url, file);
-        const cmd = `msiexec.exe /i ${pkg.replace("/", "\\")} /qn  /l* .\\msilog.log`;
+        const cmd = "Start-Process msiexec.exe -ArgumentList " +
+            `"/i ${pkg.replace("/", "\\")} /qn /l* .\\msilog.log" -Wait`;
         yield (0, exec_1.exec)("powershell.exe", ["-Command", cmd]);
         const pathFile = process.env["GITHUB_PATH"];
         if (!pathFile) {

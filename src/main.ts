@@ -100,8 +100,8 @@ async function installWindows(rel: ReleaseType) {
 
   const pkg = await downloadFile(url, file);
 
-  const cmd =
-    `msiexec.exe /i ${pkg.replace("/", "\\")} /qn  /l* .\\msilog.log`;
+  const cmd = "Start-Process msiexec.exe -ArgumentList " +
+    `"/i ${pkg.replace("/", "\\")} /qn /l* .\\msilog.log" -Wait`;
   await exec("powershell.exe", ["-Command", cmd]);
 
   const pathFile = process.env["GITHUB_PATH"];
