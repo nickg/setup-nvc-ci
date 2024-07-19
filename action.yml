@@ -9,5 +9,5 @@ runs:
   using: 'node20'
   main: 'dist/index.js'
 branding:
-  color: gray-dark
-  icon: play
+  color: blue
+  icon: code
