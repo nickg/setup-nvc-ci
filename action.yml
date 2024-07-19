@@ -2,13 +2,9 @@ name: 'Setup NVC'
 description: 'Install NVC VHDL simulator'
 inputs:
   version:
-    description: 'Version to install (stable, latest, or a specific version)'
+    description: 'Version to install (latest, or a specific version)'
     required: false
-    default: stable
-  token:
-    description: 'GitHub API token'
-    required: false
-    default: ${{ github.token }}
+    default: latest
 runs:
   using: 'node20'
   main: 'dist/index.js'

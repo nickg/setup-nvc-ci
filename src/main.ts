@@ -1,70 +1,21 @@
 import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
 import { exec } from "@actions/exec";
-import { downloadTool, extractZip } from "@actions/tool-cache";
+import { downloadTool } from "@actions/tool-cache";
 import { GetResponseDataTypeFromEndpointMethod } from "@octokit/types";
 
 type ReleaseType = GetResponseDataTypeFromEndpointMethod<
   typeof octokit.repos.listReleases>[0];
 
-const octokit = new Octokit({ auth: core.getInput("token") });
+const octokit = new Octokit();
 
-async function installLatest() {
-  core.startGroup("Query last successful build on master branch");
-
-  const runs = await octokit.actions.listWorkflowRuns({
-    owner: "nickg",
-    repo: "nvc",
-    workflow_id: "build-test.yml",
-    branch: "master",
-    per_page: 1,
-    status: "success",
-  });
-
-  const artifacts = await octokit.actions.listWorkflowRunArtifacts({
-    owner: "nickg",
-    repo: "nvc",
-    run_id: runs.data.workflow_runs[0].id,
-  });
-
-  let url = "";
-  for (const a of artifacts.data.artifacts) {
-    if (a.name === "Ubuntu package") {
-      url = a.archive_download_url;
-      break;
-    }
-  }
-
-  if (!url) {
-    throw new Error("Missing Ubuntu package in latest build");
-  }
-
-  core.endGroup();
-
-  core.startGroup("Download artifact");
-
-  const pkg = await downloadTool(url);
-  core.debug(pkg);
-
-  core.endGroup();
-
-  core.startGroup("Install package");
-
-  const zip = await extractZip(pkg);
-  core.debug(zip);
-
-  await exec("sudo", ["apt-get", "install", pkg]);
-
-  core.endGroup();
-}
-
-async function getStableRelease(): Promise<ReleaseType> {
+async function getLatestRelease(): Promise<ReleaseType> {
   core.startGroup("Query latest stable release");
 
   const releases = await octokit.repos.listReleases({
     owner: "nickg",
     repo: "nvc",
-    per_page: 1
+    per_page: 1,
   });
 
   const latest = releases.data[0];
@@ -142,16 +93,13 @@ async function installRelease(rel: ReleaseType) {
 }
 
 async function run() {
-  const version = core.getInput("version") || "stable";
+  const version = core.getInput("version") || "latest";
   core.info(`Requested version is ${version}`);
 
   core.info(core.getInput("token"));
 
   if (version === "latest") {
-    installLatest();
-  }
-  else if (version === "stable") {
-    const rel = await getStableRelease();
+    const rel = await getLatestRelease();
     installRelease(rel);
   }
   else {
