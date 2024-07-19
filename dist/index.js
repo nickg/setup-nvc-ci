@@ -28709,29 +28709,30 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const rest_1 = __nccwpck_require__(1273);
 const exec_1 = __nccwpck_require__(1514);
 const tool_cache_1 = __nccwpck_require__(7784);
+const promises_1 = __importDefault(__nccwpck_require__(3977));
 const octokit = new rest_1.Octokit();
 function getLatestRelease() {
     return __awaiter(this, void 0, void 0, function* () {
-        core.startGroup("Query latest stable release");
         const releases = yield octokit.repos.listReleases({
             owner: "nickg",
             repo: "nvc",
             per_page: 1,
         });
         const latest = releases.data[0];
-        core.info(`Stable release is ${latest.name}`);
-        core.endGroup();
+        core.info(`Latest release is ${latest.name}`);
         return latest;
     });
 }
 function getNamedRelease(name) {
     return __awaiter(this, void 0, void 0, function* () {
-        core.startGroup("Query release information");
         try {
             const resp = yield octokit.rest.repos.getReleaseByTag({
                 owner: "nickg",
@@ -28748,7 +28749,17 @@ function getNamedRelease(name) {
         }
     });
 }
-function installRelease(rel) {
+function downloadFile(url, name) {
+    return __awaiter(this, void 0, void 0, function* () {
+        core.info(`Download ${name}`);
+        const tmp = process.env["RUNNER_TEMP"];
+        if (!tmp) {
+            throw new Error("RUNNER_TEMP not set");
+        }
+        return (0, tool_cache_1.downloadTool)(url, `${tmp}/${name}`);
+    });
+}
+function installLinux(rel) {
     return __awaiter(this, void 0, void 0, function* () {
         let osVersion = "";
         yield (0, exec_1.exec)("bash", ["-c", ". /etc/os-release && echo $VERSION_ID"], {
@@ -28756,7 +28767,6 @@ function installRelease(rel) {
                 stdout: (data) => { osVersion = data.toString().trim(); }
             }
         });
-        //  osVersion = '22.04';
         core.info(`OS version is ${osVersion}`);
         let url = "", file = "";
         const suffix = `ubuntu-${osVersion}.deb`;
@@ -28771,24 +28781,51 @@ function installRelease(rel) {
         if (!url) {
             throw new Error(`No package for Ubuntu ${osVersion} in release ${rel.name}`);
         }
-        core.startGroup(`Download ${file}`);
-        const tmp = process.env["RUNNER_TEMP"];
-        if (!tmp) {
-            throw new Error("RUNNER_TEMP not set");
-        }
-        const pkg = yield (0, tool_cache_1.downloadTool)(url, `${tmp}/${file}`);
-        core.debug(pkg);
-        core.endGroup();
-        core.startGroup("Install package");
+        const pkg = yield downloadFile(url, file);
         yield (0, exec_1.exec)("sudo", ["apt-get", "install", pkg]);
-        core.endGroup();
+    });
+}
+function installWindows(rel) {
+    return __awaiter(this, void 0, void 0, function* () {
+        let url = "", file = "";
+        for (const a of rel.assets) {
+            if (a.name.endsWith(".msi")) {
+                core.info(`Found matching asset ${a.name}`);
+                url = a.browser_download_url;
+                file = a.name;
+                break;
+            }
+        }
+        if (!url) {
+            throw new Error(`No Windows installer in release ${rel.name}`);
+        }
+        const pkg = yield downloadFile(url, file);
+        const cmd = `msiexec.exe /i ${pkg.replace("/", "\\")} /qn  /l* .\\msilog.log`;
+        yield (0, exec_1.exec)("powershell.exe", ["-Command", cmd]);
+        const pathFile = process.env["GITHUB_PATH"];
+        if (!pathFile) {
+            throw new Error("GITHUB_PATH not set");
+        }
+        yield promises_1.default.appendFile(pathFile, "C:\\Program Files\\NVC\\bin\n");
+    });
+}
+function installRelease(rel) {
+    return __awaiter(this, void 0, void 0, function* () {
+        if (process.platform === "linux") {
+            installLinux(rel);
+        }
+        else if (process.platform === "win32") {
+            installWindows(rel);
+        }
+        else {
+            throw new Error("Unsupported platform");
+        }
     });
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const version = core.getInput("version") || "latest";
         core.info(`Requested version is ${version}`);
-        core.info(core.getInput("token"));
         if (version === "latest") {
             const rel = yield getLatestRelease();
             installRelease(rel);
@@ -28899,6 +28936,13 @@ module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("net");
 /***/ ((module) => {
 
 module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:events");
+
+/***/ }),
+
+/***/ 3977:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:fs/promises");
 
 /***/ }),
 

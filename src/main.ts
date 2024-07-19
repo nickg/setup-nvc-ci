@@ -3,6 +3,7 @@ import { Octokit } from "@octokit/rest";
 import { exec } from "@actions/exec";
 import { downloadTool } from "@actions/tool-cache";
 import { GetResponseDataTypeFromEndpointMethod } from "@octokit/types";
+import fs from "node:fs/promises";
 
 type ReleaseType = GetResponseDataTypeFromEndpointMethod<
   typeof octokit.repos.listReleases>[0];
@@ -10,8 +11,6 @@ type ReleaseType = GetResponseDataTypeFromEndpointMethod<
 const octokit = new Octokit();
 
 async function getLatestRelease(): Promise<ReleaseType> {
-  core.startGroup("Query latest stable release");
-
   const releases = await octokit.repos.listReleases({
     owner: "nickg",
     repo: "nvc",
@@ -19,15 +18,12 @@ async function getLatestRelease(): Promise<ReleaseType> {
   });
 
   const latest = releases.data[0];
-  core.info(`Stable release is ${latest.name}`);
+  core.info(`Latest release is ${latest.name}`);
 
-  core.endGroup();
   return latest;
 }
 
 async function getNamedRelease(name: string): Promise<ReleaseType> {
-  core.startGroup("Query release information");
-
   try {
     const resp = await octokit.rest.repos.getReleaseByTag({
       owner: "nickg",
@@ -44,7 +40,18 @@ async function getNamedRelease(name: string): Promise<ReleaseType> {
   }
 }
 
-async function installRelease(rel: ReleaseType) {
+async function downloadFile(url: string, name: string) {
+  core.info(`Download ${name}`);
+
+  const tmp = process.env["RUNNER_TEMP"];
+  if (!tmp) {
+    throw new Error("RUNNER_TEMP not set");
+  }
+
+  return downloadTool(url, `${tmp}/${name}`);
+}
+
+async function installLinux(rel: ReleaseType) {
   let osVersion = "";
   await exec("bash", ["-c", ". /etc/os-release && echo $VERSION_ID"],
     {
@@ -52,8 +59,6 @@ async function installRelease(rel: ReleaseType) {
         stdout: (data) => { osVersion = data.toString().trim(); }
       }
     });
-
-  //  osVersion = '22.04';
 
   core.info(`OS version is ${osVersion}`);
 
@@ -73,30 +78,55 @@ async function installRelease(rel: ReleaseType) {
       `No package for Ubuntu ${osVersion} in release ${rel.name}`);
   }
 
-  core.startGroup(`Download ${file}`);
-
-  const tmp = process.env["RUNNER_TEMP"];
-  if (!tmp) {
-    throw new Error("RUNNER_TEMP not set");
-  }
-
-  const pkg = await downloadTool(url, `${tmp}/${file}`);
-  core.debug(pkg);
-
-  core.endGroup();
-
-  core.startGroup("Install package");
+  const pkg = await downloadFile(url, file);
 
   await exec("sudo", ["apt-get", "install", pkg]);
+}
 
-  core.endGroup();
+async function installWindows(rel: ReleaseType) {
+  let url = "", file = "";
+  for (const a of rel.assets) {
+    if (a.name.endsWith(".msi")) {
+      core.info(`Found matching asset ${a.name}`);
+      url = a.browser_download_url;
+      file = a.name;
+      break;
+    }
+  }
+
+  if (!url) {
+    throw new Error(`No Windows installer in release ${rel.name}`);
+  }
+
+  const pkg = await downloadFile(url, file);
+
+  const cmd =
+    `msiexec.exe /i ${pkg.replace("/", "\\")} /qn  /l* .\\msilog.log`;
+  await exec("powershell.exe", ["-Command", cmd]);
+
+  const pathFile = process.env["GITHUB_PATH"];
+  if (!pathFile) {
+    throw new Error("GITHUB_PATH not set");
+  }
+
+  await fs.appendFile(pathFile, "C:\\Program Files\\NVC\\bin\n");
+}
+
+async function installRelease(rel: ReleaseType) {
+  if (process.platform === "linux") {
+    installLinux(rel);
+  }
+  else if (process.platform === "win32") {
+    installWindows(rel);
+  }
+  else {
+    throw new Error("Unsupported platform");
+  }
 }
 
 async function run() {
   const version = core.getInput("version") || "latest";
   core.info(`Requested version is ${version}`);
-
-  core.info(core.getInput("token"));
 
   if (version === "latest") {
     const rel = await getLatestRelease();
