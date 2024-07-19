@@ -28714,7 +28714,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const rest_1 = __nccwpck_require__(1273);
 const exec_1 = __nccwpck_require__(1514);
 const tool_cache_1 = __nccwpck_require__(7784);
-const octokit = new rest_1.Octokit();
+const octokit = new rest_1.Octokit({ auth: core.getInput("token") });
 function installLatest() {
     return __awaiter(this, void 0, void 0, function* () {
         core.startGroup("Query last successful build on master branch");
@@ -28731,9 +28731,25 @@ function installLatest() {
             repo: "nvc",
             run_id: runs.data.workflow_runs[0].id,
         });
+        let url = "";
         for (const a of artifacts.data.artifacts) {
-            console.log(a);
+            if (a.name === "Ubuntu package") {
+                url = a.archive_download_url;
+                break;
+            }
         }
+        if (!url) {
+            throw new Error("Missing Ubuntu package in latest build");
+        }
+        core.endGroup();
+        core.startGroup("Download artifact");
+        const pkg = yield (0, tool_cache_1.downloadTool)(url);
+        core.debug(pkg);
+        core.endGroup();
+        core.startGroup("Install package");
+        const zip = yield (0, tool_cache_1.extractZip)(pkg);
+        core.debug(zip);
+        yield (0, exec_1.exec)("sudo", ["apt-get", "install", pkg]);
         core.endGroup();
     });
 }
@@ -28799,7 +28815,7 @@ function installRelease(rel) {
             throw new Error("RUNNER_TEMP not set");
         }
         const pkg = yield (0, tool_cache_1.downloadTool)(url, `${tmp}/${file}`);
-        console.log(pkg);
+        core.debug(pkg);
         core.endGroup();
         core.startGroup("Install package");
         yield (0, exec_1.exec)("sudo", ["apt-get", "install", pkg]);
@@ -28810,6 +28826,7 @@ function run() {
     return __awaiter(this, void 0, void 0, function* () {
         const version = core.getInput("version") || "stable";
         core.info(`Requested version is ${version}`);
+        core.info(core.getInput("token"));
         if (version === "latest") {
             installLatest();
         }

@@ -1,13 +1,13 @@
 import * as core from "@actions/core";
 import { Octokit } from "@octokit/rest";
 import { exec } from "@actions/exec";
-import { downloadTool } from "@actions/tool-cache";
+import { downloadTool, extractZip } from "@actions/tool-cache";
 import { GetResponseDataTypeFromEndpointMethod } from "@octokit/types";
 
 type ReleaseType = GetResponseDataTypeFromEndpointMethod<
   typeof octokit.repos.listReleases>[0];
 
-const octokit = new Octokit();
+const octokit = new Octokit({ auth: core.getInput("token") });
 
 async function installLatest() {
   core.startGroup("Query last successful build on master branch");
@@ -27,9 +27,33 @@ async function installLatest() {
     run_id: runs.data.workflow_runs[0].id,
   });
 
+  let url = "";
   for (const a of artifacts.data.artifacts) {
-    console.log(a);
+    if (a.name === "Ubuntu package") {
+      url = a.archive_download_url;
+      break;
+    }
   }
+
+  if (!url) {
+    throw new Error("Missing Ubuntu package in latest build");
+  }
+
+  core.endGroup();
+
+  core.startGroup("Download artifact");
+
+  const pkg = await downloadTool(url);
+  core.debug(pkg);
+
+  core.endGroup();
+
+  core.startGroup("Install package");
+
+  const zip = await extractZip(pkg);
+  core.debug(zip);
+
+  await exec("sudo", ["apt-get", "install", pkg]);
 
   core.endGroup();
 }
@@ -106,7 +130,7 @@ async function installRelease(rel: ReleaseType) {
   }
 
   const pkg = await downloadTool(url, `${tmp}/${file}`);
-  console.log(pkg);
+  core.debug(pkg);
 
   core.endGroup();
 
@@ -120,6 +144,8 @@ async function installRelease(rel: ReleaseType) {
 async function run() {
   const version = core.getInput("version") || "stable";
   core.info(`Requested version is ${version}`);
+
+  core.info(core.getInput("token"));
 
   if (version === "latest") {
     installLatest();
