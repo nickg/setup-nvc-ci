@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  ubuntu:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ 20.04, 22.04, latest ]
+        version: [ stable ]
+    runs-on: ubuntu-${{ matrix.os }}
+    name: 'Ubuntu ${{ matrix.os }} - ${{ matrix.version }}'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - name: Run Action
+      uses: ./
+      with:
+        version: ${{ matrix.version }}
+    - name: Test
+      run: |
+        nvc --version
