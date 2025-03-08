@@ -8,7 +8,9 @@ import fs from "node:fs/promises";
 type ReleaseType = GetResponseDataTypeFromEndpointMethod<
   typeof octokit.repos.listReleases>[0];
 
-const octokit = new Octokit();
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN
+});
 
 async function getLatestRelease(): Promise<ReleaseType> {
   const releases = await octokit.repos.listReleases({
@@ -125,6 +127,9 @@ async function installRelease(rel: ReleaseType) {
 }
 
 async function run() {
+  const { data } = await octokit.rest.rateLimit.get();
+  core.info(`Rate limit status: ${JSON.stringify(data.resources.core)}`);
+
   const version = core.getInput("version") || "latest";
   core.info(`Requested version is ${version}`);
 

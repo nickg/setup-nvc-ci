@@ -28718,7 +28718,9 @@ const rest_1 = __nccwpck_require__(1273);
 const exec_1 = __nccwpck_require__(1514);
 const tool_cache_1 = __nccwpck_require__(7784);
 const promises_1 = __importDefault(__nccwpck_require__(3977));
-const octokit = new rest_1.Octokit();
+const octokit = new rest_1.Octokit({
+    auth: process.env.GITHUB_TOKEN
+});
 function getLatestRelease() {
     return __awaiter(this, void 0, void 0, function* () {
         const releases = yield octokit.repos.listReleases({
@@ -28825,6 +28827,8 @@ function installRelease(rel) {
 }
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
+        const { data } = yield octokit.rest.rateLimit.get();
+        core.info(`Rate limit status: ${JSON.stringify(data.resources.core)}`);
         const version = core.getInput("version") || "latest";
         core.info(`Requested version is ${version}`);
         if (version === "latest") {
