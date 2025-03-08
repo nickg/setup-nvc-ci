@@ -1,4 +1,4 @@
-# setup-nvc-ci
+# setup-nvc
 
 GitHub Action to install [NVC VHDL simulator](https://github.com/nickg/nvc).
 
@@ -8,7 +8,7 @@ See [action.yml](action.yml)
 
 <!-- start usage -->
 ```yaml
-- uses: nickg/setup-nvc-ci@v1
+- uses: nickg/setup-nvc@v1
   with:
     version: latest
 - run: |

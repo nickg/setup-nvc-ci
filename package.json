@@ -1,5 +1,5 @@
 {
-  "name": "setup-nvc-ci",
+  "name": "setup-nvc",
   "version": "1.0.0",
   "description": "GitHub Action to install NVC VHDL simulator",
   "main": "index.js",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nickg/setup-nvc-ci.git"
+    "url": "git+https://github.com/nickg/setup-nvc.git"
   },
   "keywords": [
     "actions",
@@ -21,9 +21,9 @@
   "author": "Nick Gasson",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/nickg/setup-nvc-ci/issues"
+    "url": "https://github.com/nickg/setup-nvc/issues"
   },
-  "homepage": "https://github.com/nickg/setup-nvc-ci#readme",
+  "homepage": "https://github.com/nickg/setup-nvc#readme",
   "type": "module",
   "devDependencies": {
     "@octokit/types": "^13.5.0",
